@@ -8,51 +8,32 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; }
 
-        /* 상단 CD 플레이어 영역 */
-        .player {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 60px 20px 40px;
-            border-bottom: 1px solid #1a1a1a;
-        }
+        .player { display: flex; flex-direction: column; align-items: center; padding: 60px 20px 40px; border-bottom: 1px solid #1a1a1a; }
+
+        .cd-wrap { position: relative; width: 280px; height: 280px; margin-bottom: 32px; }
         .cd-slot {
-            width: 280px;
-            height: 280px;
-            border-radius: 50%;
-            background: #111;
+            width: 280px; height: 280px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #2a2a2a, #111);
             border: 2px solid #222;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin-bottom: 32px;
-            transition: all 0.5s ease;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
         }
-        .cd-slot.spinning {
-            animation: spin 3s linear infinite;
-            border-color: #444;
-        }
+        .cd-slot.spinning { animation: spin 4s linear infinite; }
+        .cd-slot.slowing { animation: spin 4s linear infinite; animation-duration: 8s; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .cd-cover {
-            width: 240px;
-            height: 240px;
-            border-radius: 50%;
-            object-fit: cover;
-            display: none;
-        }
+
+        .cd-cover { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: none; }
         .cd-cover.visible { display: block; }
-        .cd-placeholder {
-            font-size: 80px;
-            opacity: 0.2;
-        }
+        .cd-placeholder { font-size: 80px; opacity: 0.2; }
         .cd-hole {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #0a0a0a;
-            border-radius: 50%;
-            border: 2px solid #222;
+            position: absolute; width: 44px; height: 44px;
+            background: #0a0a0a; border-radius: 50%; border: 2px solid #1a1a1a;
+            z-index: 2; pointer-events: none;
+        }
+        .cd-shine {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+            z-index: 1; pointer-events: none;
         }
 
         .cd-info { text-align: center; margin-bottom: 32px; min-height: 60px; }
@@ -60,66 +41,50 @@
         .cd-info p { color: #888; font-size: 14px; }
 
         .controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-        .btn {
-            padding: 12px 24px;
-            border-radius: 100px;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
+        .btn { padding: 12px 24px; border-radius: 100px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.8; }
         .btn-primary { background: #fff; color: #000; }
-        .btn-ghost { background: #1a1a1a; color: #fff; border: 1px solid #333; }
         .btn-eject { background: #1a1a1a; color: #888; border: 1px solid #222; }
+        .cd-select { background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 100px; padding: 12px 20px; font-size: 14px; cursor: pointer; outline: none; }
 
-        /* CD 선택 드롭다운 */
-        .cd-select {
-            background: #1a1a1a;
-            color: #fff;
-            border: 1px solid #333;
-            border-radius: 100px;
-            padding: 12px 20px;
-            font-size: 14px;
-            cursor: pointer;
-            outline: none;
-        }
-
-        /* 하단 트랙/가사 영역 */
         .content { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
-
         .tracklist { margin-bottom: 32px; }
-        .tracklist h3 { font-size: 12px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
-        .track {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 8px; border-radius: 8px; cursor: pointer;
-            transition: background 0.15s;
-        }
-        .track:hover { background: #1a1a1a; }
-        .track.active { background: #1a1a1a; }
+        .tracklist h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+
+        .track { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+        .track:hover { background: #141414; }
+        .track.active { background: #141414; }
+        .track-num { color: #444; font-size: 13px; width: 24px; text-align: right; flex-shrink: 0; }
+        .track-playing { display: none; width: 24px; text-align: right; flex-shrink: 0; }
         .track.active .track-num { display: none; }
-        .track.active .track-playing { display: block !important; }
-        .track-num { color: #555; font-size: 13px; width: 24px; text-align: right; flex-shrink: 0; }
-        .track-playing { display: none; color: #fff; font-size: 13px; width: 24px; text-align: right; flex-shrink: 0; }
+        .track.active .track-playing { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
+        .bar { width: 3px; border-radius: 2px; background: #fff; animation: eq 0.8s ease-in-out infinite alternate; }
+        .bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+        .bar:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+        .bar:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+        @keyframes eq { to { height: 4px; } }
         .track-title { flex: 1; font-size: 14px; }
-        .track-duration { color: #555; font-size: 12px; }
+        .track.active .track-title { color: #fff; font-weight: 500; }
+        .track-duration { color: #444; font-size: 12px; }
 
         .lyrics { padding-top: 32px; border-top: 1px solid #1a1a1a; display: none; }
         .lyrics.open { display: block; }
-        .lyrics h3 { font-size: 12px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
-        .lyrics-text { font-size: 16px; line-height: 2.2; color: #aaa; white-space: pre-line; }
+        .lyrics h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
+        .lyrics-text { font-size: 16px; line-height: 2.2; color: #888; white-space: pre-line; }
 
-        #status { text-align: center; color: #555; padding: 40px; font-size: 14px; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+        #status { text-align: center; color: #444; padding: 40px; font-size: 14px; }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
     </style>
 </head>
 <body>
     <div class="player">
-        <div class="cd-slot" id="cdSlot">
-            <div class="cd-placeholder" id="cdPlaceholder">💿</div>
-            <img class="cd-cover" id="cdCover" src="" alt="">
-            <div class="cd-hole"></div>
+        <div class="cd-wrap">
+            <div class="cd-slot" id="cdSlot">
+                <div class="cd-placeholder" id="cdPlaceholder">💿</div>
+                <img class="cd-cover" id="cdCover" src="" alt="">
+                <div class="cd-shine"></div>
+                <div class="cd-hole"></div>
+            </div>
         </div>
 
         <div class="cd-info" id="cdInfo">
@@ -128,9 +93,7 @@
         </div>
 
         <div class="controls">
-            <select class="cd-select" id="cdSelect">
-                <option value="">CD 선택...</option>
-            </select>
+            <select class="cd-select" id="cdSelect"><option value="">CD 선택...</option></select>
             <button class="btn btn-primary" onclick="insertCD()">▶ 삽입</button>
             <button class="btn btn-eject" onclick="ejectCD()">⏏ 꺼내기</button>
         </div>
@@ -150,7 +113,6 @@
 
     <script>
         let currentArtist = '';
-        let currentAlbum = null;
 
         async function init() {
             const res = await fetch('/api/fake-cds');
@@ -191,26 +153,22 @@
 
             const albumsRes = await fetch(`/api/albums/${artist.id}`);
             const albums = await albumsRes.json();
-            if (!albums.length) {
-                document.getElementById('status').textContent = '앨범 정보를 찾을 수 없어요';
-                return;
-            }
+            if (!albums.length) { document.getElementById('status').textContent = '앨범 정보를 찾을 수 없어요'; return; }
 
-            currentAlbum = albums[0];
-            document.getElementById('cdSlot').classList.remove('spinning');
-            document.getElementById('cdTitle').textContent = currentAlbum.title;
-            document.getElementById('cdArtist').textContent = `${artist.name} · ${currentAlbum.year}`;
+            const album = albums[0];
+            document.getElementById('cdTitle').textContent = album.title;
+            document.getElementById('cdArtist').textContent = `${artist.name} · ${album.year}`;
 
             const cover = document.getElementById('cdCover');
-            cover.src = currentAlbum.cover;
-            cover.classList.add('visible');
+            cover.src = album.cover;
+            cover.onload = () => cover.classList.add('visible');
             cover.onerror = () => {
                 cover.classList.remove('visible');
                 document.getElementById('cdPlaceholder').style.display = 'block';
             };
 
             document.getElementById('status').textContent = '';
-            loadTracks(currentAlbum.id);
+            loadTracks(album.id);
         }
 
         async function loadTracks(albumId) {
@@ -223,7 +181,7 @@
                 row.className = 'track';
                 row.innerHTML = `
                     <span class="track-num">${t.number}</span>
-                    <span class="track-playing">♪</span>
+                    <span class="track-playing"><span class="bar"></span><span class="bar"></span><span class="bar"></span></span>
                     <span class="track-title">${t.title}</span>
                     <span class="track-duration">${t.duration}</span>
                 `;
