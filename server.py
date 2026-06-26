@@ -9,21 +9,32 @@ HEADERS = {'User-Agent': 'CDPlayerApp/1.0 (study project)'}
 CACHE_DIR = 'cache'
 os.makedirs(CACHE_DIR, exist_ok=True)
 
+# 테스트용 가짜 CD 목록 (실제 MusicBrainz 디스크 ID)
+FAKE_CDS = [
+    {'label': 'Billie Eilish - HIT ME HARD AND SOFT', 'artist': 'billie eilish'},
+    {'label': 'Radiohead - OK Computer', 'artist': 'radiohead'},
+    {'label': 'The Weeknd - After Hours', 'artist': 'the weeknd'},
+]
+
 def cache_get(key):
-    path = os.path.join(CACHE_DIR, key + '.json')
+    path = os.path.join(CACHE_DIR, key.replace('/', '_') + '.json')
     if os.path.exists(path):
         with open(path, 'r') as f:
             return json.load(f)
     return None
 
 def cache_set(key, data):
-    path = os.path.join(CACHE_DIR, key + '.json')
+    path = os.path.join(CACHE_DIR, key.replace('/', '_') + '.json')
     with open(path, 'w') as f:
         json.dump(data, f)
 
 @app.route('/')
 def home():
     return send_from_directory('.', 'index.html')
+
+@app.route('/api/fake-cds')
+def fake_cds():
+    return jsonify(FAKE_CDS)
 
 @app.route('/api/search/<artist>')
 def search_artist(artist):
