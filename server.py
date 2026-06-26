@@ -42,5 +42,33 @@ def get_albums(artist_id):
         })
     return jsonify(result)
 
+@app.route('/api/tracks/<release_group_id>')
+def get_tracks(release_group_id):
+    url = f'https://musicbrainz.org/ws/2/release?release-group={release_group_id}&fmt=json'
+    res = requests.get(url, headers=HEADERS)
+    data = res.json()
+    releases = data.get('releases', [])
+    if not releases:
+        return jsonify([])
+    release_id = releases[0].get('id')
+    url2 = f'https://musicbrainz.org/ws/2/release/{release_id}?inc=recordings&fmt=json'
+    res2 = requests.get(url2, headers=HEADERS)
+    data2 = res2.json()
+    tracks = []
+    for medium in data2.get('media', []):
+        for track in medium.get('tracks', []):
+            length = track.get('length')
+            duration = ''
+            if length:
+                mins = length // 60000
+                secs = (length % 60000) // 1000
+                duration = f'{mins}:{secs:02d}'
+            tracks.append({
+                'number': track.get('position'),
+                'title': track.get('title'),
+                'duration': duration
+            })
+    return jsonify(tracks)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
