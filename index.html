@@ -9,12 +9,7 @@
         body { background: #0a0a0a; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; }
         .player { display: flex; flex-direction: column; align-items: center; padding: 60px 20px 40px; border-bottom: 1px solid #1a1a1a; }
         .cd-wrap { position: relative; width: 280px; height: 280px; margin-bottom: 32px; }
-        .cd-slot {
-            width: 280px; height: 280px; border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #2a2a2a, #111);
-            border: 2px solid #222; display: flex; align-items: center;
-            justify-content: center; position: relative; overflow: hidden;
-        }
+        .cd-slot { width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #2a2a2a, #111); border: 2px solid #222; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
         .cd-slot.spinning { animation: spin 4s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .cd-cover { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: none; }
@@ -58,8 +53,6 @@
         .lyrics-text { font-size: 16px; line-height: 2.4; color: #777; white-space: pre-line; }
         #status { text-align: center; color: #444; padding: 40px; font-size: 14px; }
         .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
-        .panel { display: none; }
-        .panel.active { display: block; }
     </style>
 </head>
 <body>
@@ -76,25 +69,22 @@
             <h2 id="cdTitle">CD를 삽입해주세요</h2>
             <p id="cdArtist">— — —</p>
         </div>
-
         <div class="mode-tabs">
             <button class="mode-tab active" onclick="switchMode('real')">💿 실제 CD</button>
             <button class="mode-tab" onclick="switchMode('demo')">🎵 데모</button>
         </div>
-
         <div class="controls">
-            <div class="panel active" id="realPanel">
+            <div id="realPanel" style="display:flex; gap:12px;">
                 <button class="btn btn-green" onclick="readRealCD()">⏏ CD 읽기</button>
                 <button class="btn btn-eject" onclick="ejectCD()">꺼내기</button>
             </div>
-            <div class="panel" id="demoPanel" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+            <div id="demoPanel" style="display:none; gap:12px; flex-wrap:wrap; justify-content:center;">
                 <select class="cd-select" id="cdSelect"><option value="">CD 선택...</option></select>
                 <button class="btn btn-primary" onclick="insertDemo()">▶ 삽입</button>
                 <button class="btn btn-eject" onclick="ejectCD()">꺼내기</button>
             </div>
         </div>
     </div>
-
     <div class="content">
         <div id="status">CD를 드라이브에 넣고 "CD 읽기"를 눌러보세요</div>
         <div class="tracklist" id="tracklist" style="display:none">
@@ -106,22 +96,25 @@
             <div class="lyrics-text" id="lyricsText"></div>
         </div>
     </div>
-
     <script>
         let currentArtist = '';
         let currentMode = 'real';
+        let lastDiscId = null;
+        let isLoading = false;
 
         function switchMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.mode-tab').forEach((t, i) => {
                 t.classList.toggle('active', (i === 0 && mode === 'real') || (i === 1 && mode === 'demo'));
             });
-            document.getElementById('realPanel').classList.toggle('active', mode === 'real');
+            document.getElementById('realPanel').style.display = mode === 'real' ? 'flex' : 'none';
             document.getElementById('demoPanel').style.display = mode === 'demo' ? 'flex' : 'none';
             ejectCD();
         }
 
         async function readRealCD() {
+            if (isLoading) return;
+            isLoading = true;
             resetUI();
             document.getElementById('cdSlot').classList.add('spinning');
             document.getElementById('cdPlaceholder').style.display = 'none';
@@ -129,22 +122,23 @@
 
             const data = await (await fetch('/api/read-cd')).json();
             document.getElementById('cdSlot').classList.remove('spinning');
+            isLoading = false;
 
             if (data.error) {
                 document.getElementById('status').textContent = data.error;
                 document.getElementById('cdPlaceholder').style.display = 'block';
+                document.getElementById('cdTitle').textContent = 'CD를 삽입해주세요';
+                document.getElementById('cdArtist').textContent = '— — —';
                 return;
             }
 
             currentArtist = data.artist;
             document.getElementById('cdTitle').textContent = data.title;
             document.getElementById('cdArtist').textContent = `${data.artist} · ${data.year}`;
-
             const cover = document.getElementById('cdCover');
             cover.src = data.cover;
             cover.onload = () => { cover.classList.add('visible'); document.getElementById('cdPlaceholder').style.display = 'none'; };
             cover.onerror = () => { cover.classList.remove('visible'); document.getElementById('cdPlaceholder').style.display = 'block'; };
-
             document.getElementById('status').textContent = '';
             renderTracks(data.tracks);
         }
@@ -170,9 +164,8 @@
             document.getElementById('status').innerHTML = '<span class="spinner"></span>CD 읽는 중...';
 
             const artist = await (await fetch(`/api/search/${encodeURIComponent(cd.artist)}`)).json();
-            if (artist.error) { document.getElementById('status').textContent = '인식 실패'; return; }
+            if (artist.error) { document.getElementById('status').textContent = '인식 실패'; document.getElementById('cdSlot').classList.remove('spinning'); return; }
             currentArtist = artist.name;
-
             const albums = await (await fetch(`/api/albums/${artist.id}`)).json();
             if (!albums.length) { document.getElementById('status').textContent = '앨범 없음'; return; }
 
@@ -180,12 +173,10 @@
             document.getElementById('cdSlot').classList.remove('spinning');
             document.getElementById('cdTitle').textContent = album.title;
             document.getElementById('cdArtist').textContent = `${artist.name} · ${album.year}`;
-
             const cover = document.getElementById('cdCover');
             cover.src = album.cover;
             cover.onload = () => cover.classList.add('visible');
             cover.onerror = () => { cover.classList.remove('visible'); document.getElementById('cdPlaceholder').style.display = 'block'; };
-
             document.getElementById('status').textContent = '';
             const tracks = await (await fetch(`/api/tracks/${album.id}`)).json();
             renderTracks(tracks);
@@ -229,6 +220,7 @@
         }
 
         function ejectCD() {
+            isLoading = false;
             document.getElementById('cdSlot').classList.remove('spinning');
             document.getElementById('cdCover').classList.remove('visible');
             document.getElementById('cdPlaceholder').style.display = 'block';
@@ -240,27 +232,23 @@
             if (document.getElementById('cdSelect')) document.getElementById('cdSelect').value = '';
         }
 
+        // CD 자동 감지
+        setInterval(async () => {
+            if (currentMode !== 'real' || isLoading) return;
+            try {
+                const state = await (await fetch('/api/cd-status')).json();
+                if (state.disc_id && state.disc_id !== lastDiscId) {
+                    lastDiscId = state.disc_id;
+                    readRealCD();
+                }
+                if (!state.disc_id && lastDiscId) {
+                    lastDiscId = null;
+                    ejectCD();
+                }
+            } catch(e) {}
+        }, 3000);
+
         init();
     </script>
 </body>
 </html>
-
-<script>
-// CD 자동 감지 — 3초마다 상태 확인
-let lastDiscId = null;
-setInterval(async () => {
-    try {
-        const state = await (await fetch('/api/cd-status')).json();
-        if (state.disc_id && state.disc_id !== lastDiscId) {
-            lastDiscId = state.disc_id;
-            if (document.getElementById('realPanel').classList.contains('active') || currentMode === 'real') {
-                readRealCD();
-            }
-        }
-        if (!state.disc_id && lastDiscId) {
-            lastDiscId = null;
-            ejectCD();
-        }
-    } catch(e) {}
-}, 3000);
-</script>
