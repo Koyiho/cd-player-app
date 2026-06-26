@@ -4,12 +4,10 @@ import os
 from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__)
-
 HEADERS = {'User-Agent': 'CDPlayerApp/1.0 (study project)'}
 CACHE_DIR = 'cache'
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# 테스트용 가짜 CD 목록 (실제 MusicBrainz 디스크 ID)
 FAKE_CDS = [
     {'label': 'Billie Eilish - HIT ME HARD AND SOFT', 'artist': 'billie eilish'},
     {'label': 'Radiohead - OK Computer', 'artist': 'radiohead'},
@@ -39,43 +37,33 @@ def fake_cds():
 @app.route('/api/search/<artist>')
 def search_artist(artist):
     cached = cache_get(f'artist_{artist.lower()}')
-    if cached:
-        return jsonify(cached)
+    if cached: return jsonify(cached)
     url = f'https://musicbrainz.org/ws/2/artist/?query={artist}&fmt=json'
     res = requests.get(url, headers=HEADERS)
     data = res.json()
     artists = data.get('artists', [])
-    if not artists:
-        return jsonify({'error': 'artist not found'})
+    if not artists: return jsonify({'error': 'artist not found'})
     top = artists[0]
-    result = {
-        'name': top.get('name'),
-        'id': top.get('id'),
-        'country': top.get('country', 'unknown')
-    }
+    result = {'name': top.get('name'), 'id': top.get('id'), 'country': top.get('country', 'unknown')}
     cache_set(f'artist_{artist.lower()}', result)
     return jsonify(result)
 
 @app.route('/api/albums/<artist_id>')
 def get_albums(artist_id):
     cached = cache_get(f'albums_{artist_id}')
-    if cached:
-        return jsonify(cached)
+    if cached: return jsonify(cached)
     url = f'https://musicbrainz.org/ws/2/release-group/?artist={artist_id}&type=album&fmt=json'
     res = requests.get(url, headers=HEADERS)
     data = res.json()
     albums = data.get('release-groups', [])
     result = []
+    skip = ['live', 'tour', 'acapella', 'commentary', 'rarities', 'remix', 'integral']
     for album in albums:
+        title = album.get('title', '')
+        if any(k in title.lower() for k in skip): continue
         album_id = album.get('id')
-        cover_url = f'https://coverartarchive.org/release-group/{album_id}/front-250'
         year = album.get('first-release-date', '')[:4]
-        result.append({
-            'title': album.get('title'),
-            'year': year,
-            'id': album_id,
-            'cover': cover_url
-        })
+        result.append({'title': title, 'year': year, 'id': album_id, 'cover': f'https://coverartarchive.org/release-group/{album_id}/front-250'})
     result.sort(key=lambda x: x['year'] or '0000', reverse=True)
     cache_set(f'albums_{artist_id}', result)
     return jsonify(result)
@@ -83,49 +71,30 @@ def get_albums(artist_id):
 @app.route('/api/tracks/<release_group_id>')
 def get_tracks(release_group_id):
     cached = cache_get(f'tracks_{release_group_id}')
-    if cached:
-        return jsonify(cached)
+    if cached: return jsonify(cached)
     url = f'https://musicbrainz.org/ws/2/release?release-group={release_group_id}&fmt=json'
     res = requests.get(url, headers=HEADERS)
-    data = res.json()
-    releases = data.get('releases', [])
-    if not releases:
-        return jsonify([])
+    releases = res.json().get('releases', [])
+    if not releases: return jsonify([])
     release_id = releases[0].get('id')
-    url2 = f'https://musicbrainz.org/ws/2/release/{release_id}?inc=recordings&fmt=json'
-    res2 = requests.get(url2, headers=HEADERS)
-    data2 = res2.json()
+    res2 = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?inc=recordings&fmt=json', headers=HEADERS)
     tracks = []
-    for medium in data2.get('media', []):
+    for medium in res2.json().get('media', []):
         for track in medium.get('tracks', []):
-            length = track.get('length')
-            duration = ''
-            if length:
-                mins = length // 60000
-                secs = (length % 60000) // 1000
-                duration = f'{mins}:{secs:02d}'
-            tracks.append({
-                'number': track.get('position'),
-                'title': track.get('title'),
-                'duration': duration
-            })
+            l = track.get('length')
+            dur = f'{l//60000}:{(l%60000)//1000:02d}' if l else ''
+            tracks.append({'number': track.get('position'), 'title': track.get('title'), 'duration': dur})
     cache_set(f'tracks_{release_group_id}', tracks)
     return jsonify(tracks)
 
 @app.route('/api/lyrics/<artist>/<title>')
 def get_lyrics(artist, title):
     cached = cache_get(f'lyrics_{artist.lower()}_{title.lower()}')
-    if cached:
-        return jsonify(cached)
-    url = f'https://lrclib.net/api/get?artist_name={artist}&track_name={title}'
-    res = requests.get(url, headers=HEADERS)
-    if res.status_code != 200:
-        return jsonify({'error': 'lyrics not found'})
+    if cached: return jsonify(cached)
+    res = requests.get(f'https://lrclib.net/api/get?artist_name={artist}&track_name={title}', headers=HEADERS)
+    if res.status_code != 200: return jsonify({'error': 'lyrics not found'})
     data = res.json()
-    result = {
-        'plain': data.get('plainLyrics', ''),
-        'synced': data.get('syncedLyrics', '')
-    }
+    result = {'plain': data.get('plainLyrics', ''), 'synced': data.get('syncedLyrics', '')}
     cache_set(f'lyrics_{artist.lower()}_{title.lower()}', result)
     return jsonify(result)
 

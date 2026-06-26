@@ -7,57 +7,39 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; color: #fff; font-family: -apple-system, sans-serif; min-height: 100vh; }
-
         .player { display: flex; flex-direction: column; align-items: center; padding: 60px 20px 40px; border-bottom: 1px solid #1a1a1a; }
-
         .cd-wrap { position: relative; width: 280px; height: 280px; margin-bottom: 32px; }
         .cd-slot {
             width: 280px; height: 280px; border-radius: 50%;
             background: radial-gradient(circle at 30% 30%, #2a2a2a, #111);
-            border: 2px solid #222;
-            display: flex; align-items: center; justify-content: center;
-            position: relative; overflow: hidden;
+            border: 2px solid #222; display: flex; align-items: center;
+            justify-content: center; position: relative; overflow: hidden;
         }
         .cd-slot.spinning { animation: spin 4s linear infinite; }
-        .cd-slot.slowing { animation: spin 4s linear infinite; animation-duration: 8s; }
         @keyframes spin { to { transform: rotate(360deg); } }
-
         .cd-cover { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: none; }
         .cd-cover.visible { display: block; }
         .cd-placeholder { font-size: 80px; opacity: 0.2; }
-        .cd-hole {
-            position: absolute; width: 44px; height: 44px;
-            background: #0a0a0a; border-radius: 50%; border: 2px solid #1a1a1a;
-            z-index: 2; pointer-events: none;
-        }
-        .cd-shine {
-            position: absolute; inset: 0; border-radius: 50%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
-            z-index: 1; pointer-events: none;
-        }
-
+        .cd-hole { position: absolute; width: 44px; height: 44px; background: #0a0a0a; border-radius: 50%; border: 2px solid #1a1a1a; z-index: 2; pointer-events: none; }
+        .cd-shine { position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%); z-index: 1; pointer-events: none; }
         .cd-info { text-align: center; margin-bottom: 32px; min-height: 60px; }
         .cd-info h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
         .cd-info p { color: #888; font-size: 14px; }
-
         .controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
         .btn { padding: 12px 24px; border-radius: 100px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.8; }
         .btn-primary { background: #fff; color: #000; }
         .btn-eject { background: #1a1a1a; color: #888; border: 1px solid #222; }
         .cd-select { background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 100px; padding: 12px 20px; font-size: 14px; cursor: pointer; outline: none; }
-
         .content { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
-        .tracklist { margin-bottom: 32px; }
         .tracklist h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
-
         .track { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
         .track:hover { background: #141414; }
         .track.active { background: #141414; }
         .track-num { color: #444; font-size: 13px; width: 24px; text-align: right; flex-shrink: 0; }
-        .track-playing { display: none; width: 24px; text-align: right; flex-shrink: 0; }
+        .track-playing { display: none; width: 24px; justify-content: flex-end; align-items: center; gap: 2px; flex-shrink: 0; }
         .track.active .track-num { display: none; }
-        .track.active .track-playing { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
+        .track.active .track-playing { display: flex; }
         .bar { width: 3px; border-radius: 2px; background: #fff; animation: eq 0.8s ease-in-out infinite alternate; }
         .bar:nth-child(1) { height: 8px; animation-delay: 0s; }
         .bar:nth-child(2) { height: 14px; animation-delay: 0.2s; }
@@ -66,12 +48,10 @@
         .track-title { flex: 1; font-size: 14px; }
         .track.active .track-title { color: #fff; font-weight: 500; }
         .track-duration { color: #444; font-size: 12px; }
-
-        .lyrics { padding-top: 32px; border-top: 1px solid #1a1a1a; display: none; }
+        .lyrics { padding-top: 32px; margin-top: 32px; border-top: 1px solid #1a1a1a; display: none; }
         .lyrics.open { display: block; }
         .lyrics h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
-        .lyrics-text { font-size: 16px; line-height: 2.2; color: #888; white-space: pre-line; }
-
+        .lyrics-text { font-size: 16px; line-height: 2.4; color: #777; white-space: pre-line; }
         #status { text-align: center; color: #444; padding: 40px; font-size: 14px; }
         .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
     </style>
@@ -86,19 +66,16 @@
                 <div class="cd-hole"></div>
             </div>
         </div>
-
-        <div class="cd-info" id="cdInfo">
+        <div class="cd-info">
             <h2 id="cdTitle">CD를 삽입해주세요</h2>
             <p id="cdArtist">— — —</p>
         </div>
-
         <div class="controls">
             <select class="cd-select" id="cdSelect"><option value="">CD 선택...</option></select>
             <button class="btn btn-primary" onclick="insertCD()">▶ 삽입</button>
             <button class="btn btn-eject" onclick="ejectCD()">⏏ 꺼내기</button>
         </div>
     </div>
-
     <div class="content">
         <div id="status">위에서 CD를 선택하고 삽입해보세요</div>
         <div class="tracklist" id="tracklist" style="display:none">
@@ -110,29 +87,24 @@
             <div class="lyrics-text" id="lyricsText"></div>
         </div>
     </div>
-
     <script>
         let currentArtist = '';
 
         async function init() {
-            const res = await fetch('/api/fake-cds');
-            const cds = await res.json();
+            const cds = await (await fetch('/api/fake-cds')).json();
             const select = document.getElementById('cdSelect');
             cds.forEach((cd, i) => {
                 const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = cd.label;
+                opt.value = i; opt.textContent = cd.label;
                 select.appendChild(opt);
             });
             window._cds = cds;
         }
 
         async function insertCD() {
-            const select = document.getElementById('cdSelect');
-            const idx = select.value;
+            const idx = document.getElementById('cdSelect').value;
             if (idx === '') return;
             const cd = window._cds[idx];
-
             document.getElementById('cdTitle').textContent = '읽는 중...';
             document.getElementById('cdArtist').textContent = '— — —';
             document.getElementById('cdSlot').classList.add('spinning');
@@ -142,38 +114,26 @@
             document.getElementById('lyricsPanel').classList.remove('open');
             document.getElementById('status').innerHTML = '<span class="spinner"></span>CD 읽는 중...';
 
-            const artistRes = await fetch(`/api/search/${encodeURIComponent(cd.artist)}`);
-            const artist = await artistRes.json();
+            const artist = await (await fetch(`/api/search/${encodeURIComponent(cd.artist)}`)).json();
             if (artist.error) {
                 document.getElementById('status').textContent = '인식할 수 없는 CD예요';
                 document.getElementById('cdSlot').classList.remove('spinning');
                 return;
             }
             currentArtist = artist.name;
-
-            const albumsRes = await fetch(`/api/albums/${artist.id}`);
-            const albums = await albumsRes.json();
-            if (!albums.length) { document.getElementById('status').textContent = '앨범 정보를 찾을 수 없어요'; return; }
+            const albums = await (await fetch(`/api/albums/${artist.id}`)).json();
+            if (!albums.length) { document.getElementById('status').textContent = '앨범 정보 없음'; return; }
 
             const album = albums[0];
             document.getElementById('cdTitle').textContent = album.title;
             document.getElementById('cdArtist').textContent = `${artist.name} · ${album.year}`;
-
             const cover = document.getElementById('cdCover');
             cover.src = album.cover;
             cover.onload = () => cover.classList.add('visible');
-            cover.onerror = () => {
-                cover.classList.remove('visible');
-                document.getElementById('cdPlaceholder').style.display = 'block';
-            };
-
+            cover.onerror = () => { cover.classList.remove('visible'); document.getElementById('cdPlaceholder').style.display = 'block'; };
             document.getElementById('status').textContent = '';
-            loadTracks(album.id);
-        }
 
-        async function loadTracks(albumId) {
-            const res = await fetch(`/api/tracks/${albumId}`);
-            const tracks = await res.json();
+            const tracks = await (await fetch(`/api/tracks/${album.id}`)).json();
             const items = document.getElementById('trackItems');
             items.innerHTML = '';
             tracks.forEach(t => {
@@ -194,13 +154,10 @@
         async function loadLyrics(trackTitle, row) {
             document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
             row.classList.add('active');
-            const panel = document.getElementById('lyricsPanel');
-            panel.classList.add('open');
+            document.getElementById('lyricsPanel').classList.add('open');
             document.getElementById('lyricsTitle').textContent = trackTitle;
             document.getElementById('lyricsText').innerHTML = '<span class="spinner"></span>가사 불러오는 중...';
-
-            const res = await fetch(`/api/lyrics/${encodeURIComponent(currentArtist)}/${encodeURIComponent(trackTitle)}`);
-            const data = await res.json();
+            const data = await (await fetch(`/api/lyrics/${encodeURIComponent(currentArtist)}/${encodeURIComponent(trackTitle)}`)).json();
             document.getElementById('lyricsText').textContent = data.plain || '가사를 찾을 수 없어요';
         }
 
