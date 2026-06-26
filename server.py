@@ -3,6 +3,8 @@ import json
 import os
 import unicodedata
 import discid
+import threading
+import time
 from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__)
@@ -24,6 +26,8 @@ SKIP_KEYWORDS = ['live', 'tour', 'acapella', 'commentary', 'rarities', 'remix',
                  'integrale', 'intégrale', 'singles', 'collection', 'best of',
                  'greatest hits', 'box set', 'instrumental', 'karaoke']
 
+cd_state = {'disc_id': None, 'status': 'empty'}
+
 def normalize(s):
     return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower()
 
@@ -39,6 +43,25 @@ def cache_set(key, data):
     with open(path, 'w') as f:
         json.dump(data, f)
 
+def monitor_cd():
+    last_id = None
+    while True:
+        try:
+            disc = discid.read()
+            if disc.id != last_id:
+                last_id = disc.id
+                cd_state['disc_id'] = disc.id
+                cd_state['status'] = 'inserted'
+        except:
+            if last_id is not None:
+                last_id = None
+                cd_state['disc_id'] = None
+                cd_state['status'] = 'empty'
+        time.sleep(3)
+
+monitor_thread = threading.Thread(target=monitor_cd, daemon=True)
+monitor_thread.start()
+
 @app.route('/')
 def home():
     return send_from_directory('.', 'index.html')
@@ -46,6 +69,10 @@ def home():
 @app.route('/api/fake-cds')
 def fake_cds():
     return jsonify(FAKE_CDS)
+
+@app.route('/api/cd-status')
+def cd_status():
+    return jsonify(cd_state)
 
 @app.route('/api/read-cd')
 def read_cd():
@@ -78,21 +105,9 @@ def read_cd():
             for track in medium.get('tracks', []):
                 l = track.get('length')
                 dur = f'{l//60000}:{(l%60000)//1000:02d}' if l else ''
-                tracks.append({
-                    'number': track.get('position'),
-                    'title': track.get('title'),
-                    'duration': dur
-                })
+                tracks.append({'number': track.get('position'), 'title': track.get('title'), 'duration': dur})
 
-        result = {
-            'disc_id': disc_id,
-            'artist': artist,
-            'title': title,
-            'year': year,
-            'cover': cover,
-            'release_group_id': release_group_id,
-            'tracks': tracks
-        }
+        result = {'disc_id': disc_id, 'artist': artist, 'title': title, 'year': year, 'cover': cover, 'release_group_id': release_group_id, 'tracks': tracks}
         cache_set(f'disc_{disc_id}', result)
         return jsonify(result)
 
@@ -168,4 +183,4 @@ def get_lyrics(artist, title):
         return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, use_reloader=False)

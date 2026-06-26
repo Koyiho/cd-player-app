@@ -244,3 +244,23 @@
     </script>
 </body>
 </html>
+
+<script>
+// CD 자동 감지 — 3초마다 상태 확인
+let lastDiscId = null;
+setInterval(async () => {
+    try {
+        const state = await (await fetch('/api/cd-status')).json();
+        if (state.disc_id && state.disc_id !== lastDiscId) {
+            lastDiscId = state.disc_id;
+            if (document.getElementById('realPanel').classList.contains('active') || currentMode === 'real') {
+                readRealCD();
+            }
+        }
+        if (!state.disc_id && lastDiscId) {
+            lastDiscId = null;
+            ejectCD();
+        }
+    } catch(e) {}
+}, 3000);
+</script>
