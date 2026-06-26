@@ -49,8 +49,17 @@
         .track-duration { color: #444; font-size: 12px; }
         .lyrics { padding-top: 32px; margin-top: 32px; border-top: 1px solid #1a1a1a; display: none; }
         .lyrics.open { display: block; }
-        .lyrics h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
-        .lyrics-text { font-size: 16px; line-height: 2.4; color: #777; white-space: pre-line; }
+        .lyrics-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 28px; }
+        .lyrics-header h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; }
+        .lyrics-track-name { font-size: 16px; font-weight: 600; color: #fff; }
+        .lyrics-body { }
+        .lyrics-section-label { font-size: 11px; color: #555; letter-spacing: 1px; text-transform: uppercase; margin: 24px 0 8px; }
+        .lyrics-section-label:first-child { margin-top: 0; }
+        .lyrics-line { font-size: 16px; line-height: 2; color: #888; }
+        .lyrics-line.empty { height: 12px; }
+        .no-lyrics { text-align: center; padding: 48px 0; }
+        .no-lyrics-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+        .no-lyrics-text { color: #444; font-size: 14px; }
         #status { text-align: center; color: #444; padding: 40px; font-size: 14px; }
         .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
     </style>
@@ -92,8 +101,11 @@
             <div id="trackItems"></div>
         </div>
         <div class="lyrics" id="lyricsPanel">
-            <h3 id="lyricsTitle">Lyrics</h3>
-            <div class="lyrics-text" id="lyricsText"></div>
+            <div class="lyrics-header">
+                <h3>Lyrics</h3>
+                <span class="lyrics-track-name" id="lyricsTrackName"></span>
+            </div>
+            <div class="lyrics-body" id="lyricsBody"></div>
         </div>
     </div>
     <script>
@@ -200,14 +212,39 @@
             document.getElementById('tracklist').style.display = 'block';
         }
 
+        function renderLyrics(plain) {
+            const body = document.getElementById('lyricsBody');
+            if (!plain) {
+                body.innerHTML = `
+                    <div class="no-lyrics">
+                        <div class="no-lyrics-icon">🎵</div>
+                        <div class="no-lyrics-text">가사를 찾을 수 없어요</div>
+                    </div>`;
+                return;
+            }
+            const lines = plain.split('\n');
+            let html = '';
+            lines.forEach(line => {
+                if (line.match(/^\[.+\]$/)) {
+                    html += `<div class="lyrics-section-label">${line.replace(/[\[\]]/g, '')}</div>`;
+                } else if (line.trim() === '') {
+                    html += `<div class="lyrics-line empty"></div>`;
+                } else {
+                    html += `<div class="lyrics-line">${line}</div>`;
+                }
+            });
+            body.innerHTML = html;
+        }
+
         async function loadLyrics(trackTitle, row) {
             document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
             row.classList.add('active');
             document.getElementById('lyricsPanel').classList.add('open');
-            document.getElementById('lyricsTitle').textContent = trackTitle;
-            document.getElementById('lyricsText').innerHTML = '<span class="spinner"></span>가사 불러오는 중...';
+            document.getElementById('lyricsTrackName').textContent = trackTitle;
+            document.getElementById('lyricsBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#444"><span class="spinner"></span>불러오는 중...</div>';
+
             const data = await (await fetch(`/api/lyrics/${encodeURIComponent(currentArtist)}/${encodeURIComponent(trackTitle)}`)).json();
-            document.getElementById('lyricsText').textContent = data.plain || '가사를 찾을 수 없어요';
+            renderLyrics(data.plain);
         }
 
         function resetUI() {
@@ -232,7 +269,6 @@
             if (document.getElementById('cdSelect')) document.getElementById('cdSelect').value = '';
         }
 
-        // CD 자동 감지
         setInterval(async () => {
             if (currentMode !== 'real' || isLoading) return;
             try {
