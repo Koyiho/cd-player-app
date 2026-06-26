@@ -1,15 +1,13 @@
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__)
 
 HEADERS = {'User-Agent': 'CDPlayerApp/1.0 (study project)'}
 
-BILLIE_ID = 'f4abc0b5-3f7a-4eff-8f78-ac078dbce533'
-
 @app.route('/')
 def home():
-    return '<h1>CD Player 서버 작동 중</h1>'
+    return send_from_directory('.', 'index.html')
 
 @app.route('/api/search/<artist>')
 def search_artist(artist):
@@ -34,10 +32,13 @@ def get_albums(artist_id):
     albums = data.get('release-groups', [])
     result = []
     for album in albums:
+        album_id = album.get('id')
+        cover_url = f'https://coverartarchive.org/release-group/{album_id}/front-250'
         result.append({
             'title': album.get('title'),
             'year': album.get('first-release-date', '')[:4],
-            'id': album.get('id')
+            'id': album_id,
+            'cover': cover_url
         })
     return jsonify(result)
 
