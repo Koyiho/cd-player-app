@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import unicodedata
 from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__)
@@ -13,6 +14,11 @@ FAKE_CDS = [
     {'label': 'Radiohead - OK Computer', 'artist': 'radiohead'},
     {'label': 'The Weeknd - After Hours', 'artist': 'the weeknd'},
 ]
+
+SKIP_KEYWORDS = ['live', 'tour', 'acapella', 'commentary', 'rarities', 'remix', 'integrale', 'intégrale', 'singles', 'collection', 'best of', 'greatest hits', 'box set']
+
+def normalize(s):
+    return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower()
 
 def cache_get(key):
     path = os.path.join(CACHE_DIR, key.replace('/', '_') + '.json')
@@ -54,13 +60,12 @@ def get_albums(artist_id):
     if cached: return jsonify(cached)
     url = f'https://musicbrainz.org/ws/2/release-group/?artist={artist_id}&type=album&fmt=json'
     res = requests.get(url, headers=HEADERS)
-    data = res.json()
-    albums = data.get('release-groups', [])
+    albums = res.json().get('release-groups', [])
     result = []
-    skip = ['live', 'tour', 'acapella', 'commentary', 'rarities', 'remix', 'integral']
     for album in albums:
         title = album.get('title', '')
-        if any(k in title.lower() for k in skip): continue
+        title_norm = normalize(title)
+        if any(k in title_norm for k in SKIP_KEYWORDS): continue
         album_id = album.get('id')
         year = album.get('first-release-date', '')[:4]
         result.append({'title': title, 'year': year, 'id': album_id, 'cover': f'https://coverartarchive.org/release-group/{album_id}/front-250'})
@@ -72,14 +77,11 @@ def get_albums(artist_id):
 def get_tracks(release_group_id):
     cached = cache_get(f'tracks_{release_group_id}')
     if cached: return jsonify(cached)
-    url = f'https://musicbrainz.org/ws/2/release?release-group={release_group_id}&fmt=json'
-    res = requests.get(url, headers=HEADERS)
-    releases = res.json().get('releases', [])
+    releases = requests.get(f'https://musicbrainz.org/ws/2/release?release-group={release_group_id}&fmt=json', headers=HEADERS).json().get('releases', [])
     if not releases: return jsonify([])
-    release_id = releases[0].get('id')
-    res2 = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?inc=recordings&fmt=json', headers=HEADERS)
+    data2 = requests.get(f'https://musicbrainz.org/ws/2/release/{releases[0].get("id")}?inc=recordings&fmt=json', headers=HEADERS).json()
     tracks = []
-    for medium in res2.json().get('media', []):
+    for medium in data2.get('media', []):
         for track in medium.get('tracks', []):
             l = track.get('length')
             dur = f'{l//60000}:{(l%60000)//1000:02d}' if l else ''
