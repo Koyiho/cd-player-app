@@ -70,5 +70,17 @@ def get_tracks(release_group_id):
             })
     return jsonify(tracks)
 
+@app.route('/api/lyrics/<artist>/<title>')
+def get_lyrics(artist, title):
+    url = f'https://lrclib.net/api/get?artist_name={artist}&track_name={title}'
+    res = requests.get(url, headers=HEADERS)
+    if res.status_code != 200:
+        return jsonify({'error': 'lyrics not found'})
+    data = res.json()
+    return jsonify({
+        'plain': data.get('plainLyrics', ''),
+        'synced': data.get('syncedLyrics', '')
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
