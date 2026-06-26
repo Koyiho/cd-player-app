@@ -96,6 +96,10 @@
     </div>
     <div class="content">
         <div id="status">CD를 드라이브에 넣고 "CD 읽기"를 눌러보세요</div>
+        <div id="playerControls" style="display:none; text-align:center; margin-bottom:24px;">
+            <button onclick="togglePause()" style="background:#fff; color:#000; border:none; border-radius:100px; padding:10px 28px; font-size:14px; font-weight:600; cursor:pointer; margin-right:8px;">⏸ 일시정지</button>
+            <button onclick="stopPlay()" style="background:#1a1a1a; color:#888; border:1px solid #222; border-radius:100px; padding:10px 28px; font-size:14px; cursor:pointer;">⏹ 정지</button>
+        </div>
         <div class="tracklist" id="tracklist" style="display:none">
             <h3>Track List</h3>
             <div id="trackItems"></div>
@@ -206,10 +210,14 @@
                     <span class="track-title">${t.title}</span>
                     <span class="track-duration">${t.duration}</span>
                 `;
-                row.onclick = () => loadLyrics(t.title, row);
+                row.onclick = () => {
+                    loadLyrics(t.title, row);
+                    playTrack(t.number);
+                };
                 items.appendChild(row);
             });
             document.getElementById('tracklist').style.display = 'block';
+            document.getElementById('playerControls').style.display = 'block';
         }
 
         function renderLyrics(plain) {
@@ -247,10 +255,23 @@
             renderLyrics(data.plain);
         }
 
+        async function playTrack(trackNum) {
+            await fetch('/api/player/play/' + trackNum);
+        }
+
+        async function togglePause() {
+            await fetch('/api/player/pause');
+        }
+
+        async function stopPlay() {
+            await fetch('/api/player/stop');
+        }
+
         function resetUI() {
             document.getElementById('cdCover').classList.remove('visible');
             document.getElementById('cdPlaceholder').style.display = 'block';
             document.getElementById('tracklist').style.display = 'none';
+            document.getElementById('playerControls').style.display = 'none';
             document.getElementById('lyricsPanel').classList.remove('open');
             document.getElementById('cdTitle').textContent = '읽는 중...';
             document.getElementById('cdArtist').textContent = '— — —';
