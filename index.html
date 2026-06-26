@@ -29,8 +29,12 @@
         .btn { padding: 12px 24px; border-radius: 100px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.8; }
         .btn-primary { background: #fff; color: #000; }
+        .btn-green { background: #1db954; color: #fff; }
         .btn-eject { background: #1a1a1a; color: #888; border: 1px solid #222; }
         .cd-select { background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 100px; padding: 12px 20px; font-size: 14px; cursor: pointer; outline: none; }
+        .mode-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+        .mode-tab { padding: 8px 20px; border-radius: 100px; border: 1px solid #333; background: none; color: #888; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .mode-tab.active { background: #fff; color: #000; border-color: #fff; }
         .content { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
         .tracklist h3 { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
         .track { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
@@ -54,6 +58,8 @@
         .lyrics-text { font-size: 16px; line-height: 2.4; color: #777; white-space: pre-line; }
         #status { text-align: center; color: #444; padding: 40px; font-size: 14px; }
         .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+        .panel { display: none; }
+        .panel.active { display: block; }
     </style>
 </head>
 <body>
@@ -70,14 +76,27 @@
             <h2 id="cdTitle">CD를 삽입해주세요</h2>
             <p id="cdArtist">— — —</p>
         </div>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" onclick="switchMode('real')">💿 실제 CD</button>
+            <button class="mode-tab" onclick="switchMode('demo')">🎵 데모</button>
+        </div>
+
         <div class="controls">
-            <select class="cd-select" id="cdSelect"><option value="">CD 선택...</option></select>
-            <button class="btn btn-primary" onclick="insertCD()">▶ 삽입</button>
-            <button class="btn btn-eject" onclick="ejectCD()">⏏ 꺼내기</button>
+            <div class="panel active" id="realPanel">
+                <button class="btn btn-green" onclick="readRealCD()">⏏ CD 읽기</button>
+                <button class="btn btn-eject" onclick="ejectCD()">꺼내기</button>
+            </div>
+            <div class="panel" id="demoPanel" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+                <select class="cd-select" id="cdSelect"><option value="">CD 선택...</option></select>
+                <button class="btn btn-primary" onclick="insertDemo()">▶ 삽입</button>
+                <button class="btn btn-eject" onclick="ejectCD()">꺼내기</button>
+            </div>
         </div>
     </div>
+
     <div class="content">
-        <div id="status">위에서 CD를 선택하고 삽입해보세요</div>
+        <div id="status">CD를 드라이브에 넣고 "CD 읽기"를 눌러보세요</div>
         <div class="tracklist" id="tracklist" style="display:none">
             <h3>Track List</h3>
             <div id="trackItems"></div>
@@ -87,8 +106,48 @@
             <div class="lyrics-text" id="lyricsText"></div>
         </div>
     </div>
+
     <script>
         let currentArtist = '';
+        let currentMode = 'real';
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-tab').forEach((t, i) => {
+                t.classList.toggle('active', (i === 0 && mode === 'real') || (i === 1 && mode === 'demo'));
+            });
+            document.getElementById('realPanel').classList.toggle('active', mode === 'real');
+            document.getElementById('demoPanel').style.display = mode === 'demo' ? 'flex' : 'none';
+            ejectCD();
+        }
+
+        async function readRealCD() {
+            resetUI();
+            document.getElementById('cdSlot').classList.add('spinning');
+            document.getElementById('cdPlaceholder').style.display = 'none';
+            document.getElementById('status').innerHTML = '<span class="spinner"></span>CD 읽는 중...';
+
+            const data = await (await fetch('/api/read-cd')).json();
+            document.getElementById('cdSlot').classList.remove('spinning');
+
+            if (data.error) {
+                document.getElementById('status').textContent = data.error;
+                document.getElementById('cdPlaceholder').style.display = 'block';
+                return;
+            }
+
+            currentArtist = data.artist;
+            document.getElementById('cdTitle').textContent = data.title;
+            document.getElementById('cdArtist').textContent = `${data.artist} · ${data.year}`;
+
+            const cover = document.getElementById('cdCover');
+            cover.src = data.cover;
+            cover.onload = () => { cover.classList.add('visible'); document.getElementById('cdPlaceholder').style.display = 'none'; };
+            cover.onerror = () => { cover.classList.remove('visible'); document.getElementById('cdPlaceholder').style.display = 'block'; };
+
+            document.getElementById('status').textContent = '';
+            renderTracks(data.tracks);
+        }
 
         async function init() {
             const cds = await (await fetch('/api/fake-cds')).json();
@@ -101,39 +160,38 @@
             window._cds = cds;
         }
 
-        async function insertCD() {
+        async function insertDemo() {
             const idx = document.getElementById('cdSelect').value;
             if (idx === '') return;
             const cd = window._cds[idx];
-            document.getElementById('cdTitle').textContent = '읽는 중...';
-            document.getElementById('cdArtist').textContent = '— — —';
+            resetUI();
             document.getElementById('cdSlot').classList.add('spinning');
             document.getElementById('cdPlaceholder').style.display = 'none';
-            document.getElementById('cdCover').classList.remove('visible');
-            document.getElementById('tracklist').style.display = 'none';
-            document.getElementById('lyricsPanel').classList.remove('open');
             document.getElementById('status').innerHTML = '<span class="spinner"></span>CD 읽는 중...';
 
             const artist = await (await fetch(`/api/search/${encodeURIComponent(cd.artist)}`)).json();
-            if (artist.error) {
-                document.getElementById('status').textContent = '인식할 수 없는 CD예요';
-                document.getElementById('cdSlot').classList.remove('spinning');
-                return;
-            }
+            if (artist.error) { document.getElementById('status').textContent = '인식 실패'; return; }
             currentArtist = artist.name;
+
             const albums = await (await fetch(`/api/albums/${artist.id}`)).json();
-            if (!albums.length) { document.getElementById('status').textContent = '앨범 정보 없음'; return; }
+            if (!albums.length) { document.getElementById('status').textContent = '앨범 없음'; return; }
 
             const album = albums[0];
+            document.getElementById('cdSlot').classList.remove('spinning');
             document.getElementById('cdTitle').textContent = album.title;
             document.getElementById('cdArtist').textContent = `${artist.name} · ${album.year}`;
+
             const cover = document.getElementById('cdCover');
             cover.src = album.cover;
             cover.onload = () => cover.classList.add('visible');
             cover.onerror = () => { cover.classList.remove('visible'); document.getElementById('cdPlaceholder').style.display = 'block'; };
-            document.getElementById('status').textContent = '';
 
+            document.getElementById('status').textContent = '';
             const tracks = await (await fetch(`/api/tracks/${album.id}`)).json();
+            renderTracks(tracks);
+        }
+
+        function renderTracks(tracks) {
             const items = document.getElementById('trackItems');
             items.innerHTML = '';
             tracks.forEach(t => {
@@ -161,6 +219,15 @@
             document.getElementById('lyricsText').textContent = data.plain || '가사를 찾을 수 없어요';
         }
 
+        function resetUI() {
+            document.getElementById('cdCover').classList.remove('visible');
+            document.getElementById('cdPlaceholder').style.display = 'block';
+            document.getElementById('tracklist').style.display = 'none';
+            document.getElementById('lyricsPanel').classList.remove('open');
+            document.getElementById('cdTitle').textContent = '읽는 중...';
+            document.getElementById('cdArtist').textContent = '— — —';
+        }
+
         function ejectCD() {
             document.getElementById('cdSlot').classList.remove('spinning');
             document.getElementById('cdCover').classList.remove('visible');
@@ -169,8 +236,8 @@
             document.getElementById('cdArtist').textContent = '— — —';
             document.getElementById('tracklist').style.display = 'none';
             document.getElementById('lyricsPanel').classList.remove('open');
-            document.getElementById('status').textContent = '위에서 CD를 선택하고 삽입해보세요';
-            document.getElementById('cdSelect').value = '';
+            document.getElementById('status').textContent = currentMode === 'real' ? 'CD를 드라이브에 넣고 "CD 읽기"를 눌러보세요' : '위에서 CD를 선택하고 삽입해보세요';
+            if (document.getElementById('cdSelect')) document.getElementById('cdSelect').value = '';
         }
 
         init();
