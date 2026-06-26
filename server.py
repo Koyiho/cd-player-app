@@ -58,12 +58,14 @@ def get_albums(artist_id):
     for album in albums:
         album_id = album.get('id')
         cover_url = f'https://coverartarchive.org/release-group/{album_id}/front-250'
+        year = album.get('first-release-date', '')[:4]
         result.append({
             'title': album.get('title'),
-            'year': album.get('first-release-date', '')[:4],
+            'year': year,
             'id': album_id,
             'cover': cover_url
         })
+    result.sort(key=lambda x: x['year'] or '0000', reverse=True)
     cache_set(f'albums_{artist_id}', result)
     return jsonify(result)
 
